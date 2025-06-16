@@ -407,6 +407,7 @@ int hardware_is_known_i2c_device(u8 deviceAddress)
 {
    if ( (deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_HDMI) ||
         (deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_CSI) ||
+        (deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_CSI_2) ||
         (deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_VEYE) )
      return 1;
 
@@ -436,7 +437,8 @@ void hardware_get_i2c_device_name(u8 deviceAddress, char* szOutput)
 
    if ( deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_HDMI )
       strcpy(szOutput, I2C_DEVICE_NAME_CAMERA_HDMI);
-   if ( deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_CSI )
+   if ( deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_CSI ||
+        deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_CSI_2 )
       strcpy(szOutput, I2C_DEVICE_NAME_CAMERA_CSI);
    if ( deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_VEYE )
       strcpy(szOutput, I2C_DEVICE_NAME_CAMERA_VEYE);
@@ -673,7 +675,8 @@ t_i2c_device_settings* hardware_i2c_add_device_settings(u8 i2cAddress)
 
    log_line("[Hardware]: Adding settings for I2C device address: 0x%02X; current I2C devices count: %d", i2cAddress, s_listI2CDevicesSettings );
 
-   if ( i2cAddress == I2C_DEVICE_ADDRESS_CAMERA_CSI )
+   if ( i2cAddress == I2C_DEVICE_ADDRESS_CAMERA_CSI ||
+        i2cAddress == I2C_DEVICE_ADDRESS_CAMERA_CSI_2 )
    {
       strcpy(s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].szDeviceName, I2C_DEVICE_NAME_CAMERA_CSI);
       s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].nI2CAddress = i2cAddress;
