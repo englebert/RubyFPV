@@ -1227,16 +1227,16 @@ int main(int argc, char *argv[])
    if ( -1 == router_open_pipes() )
       log_error_and_alarm("Start sequence: Failed to open some pipes.");
    
-   if ( g_pCurrentModel->hasCamera() )
+   bool bForceNoCamera = ( access(FILE_FORCE_VEHICLE_NO_CAMERA, R_OK) != -1 );
+   if ( g_pCurrentModel->hasCamera() || bForceNoCamera )
    {
-      if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       if ( video_source_csi_open(FIFO_RUBY_CAMERA1) <= 0 )
       {
          cleanUp();
          return -1;
       }
 
-      if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+      if ( g_pCurrentModel->hasCamera() && g_pCurrentModel->isActiveCameraOpenIPC() )
       if ( video_source_majestic_open(MAJESTIC_UDP_PORT) <= 0 )
       {
          cleanUp();
