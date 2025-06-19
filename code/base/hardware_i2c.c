@@ -133,10 +133,15 @@ void hardware_enumerate_i2c_busses()
    log_line("[Hardware]: Enumerating I2C busses...");
 
 #ifdef HW_CAPABILITY_I2C
+   #if defined (HW_PLATFORM_RADXA)
+   char szBuff[8192];
+   #else
    char szBuff[256];
+   #endif
+
    int iEnumerateCount = 4;
    #if defined (HW_PLATFORM_RADXA)
-   iEnumerateCount = 6;
+   iEnumerateCount = 7;
    #endif
    for( int i=0; i<iEnumerateCount; i++ )
    {
@@ -213,6 +218,22 @@ void hardware_enumerate_i2c_busses()
          if ( k == 7 )
             addrEnd = (7*16)+7;
 
+         #ifdef HW_PLATFORM_RADXA
+         if ( ((uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_ZERO3) && (2 == s_HardwareI2CBusInfo[i].nBusNumber) )
+         {
+            if ( k == 0 )
+               addrStart = addrEnd = I2C_DEVICE_ADDRESS_CAMERA_HDMI;
+            if ( k == 1 )
+               addrStart = addrEnd = I2C_DEVICE_ADDRESS_CAMERA_CSI_2;
+            if ( k == 2 )
+               addrStart = addrEnd = I2C_DEVICE_ADDRESS_CAMERA_VEYE;
+            if ( k == 3 )
+               addrStart = addrEnd = I2C_DEVICE_ADDRESS_PICO_EXTENDER;
+            if ( k > 3 )
+               break;
+            log_line("[Hardware]: RAXDA: Searching for device on bus %d at address: 0x%02X", s_HardwareI2CBusInfo[i].nBusNumber, addrStart);
+         }
+         #else
          if ( ((uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI4B) && (0 == s_HardwareI2CBusInfo[i].nBusNumber) )
          {
             if ( k == 0 )
@@ -227,7 +248,103 @@ void hardware_enumerate_i2c_busses()
                break;
             log_line("[Hardware]: Pi4: Searching for device on bus %d at address: 0x%02X", s_HardwareI2CBusInfo[i].nBusNumber, addrStart);
          }
+         #endif
 
+         #ifdef HW_PLATFORM_RADXA
+         sprintf( szBuff, "/usr/sbin/i2cdetect -y %d 0x%02X 0x%02X", s_HardwareI2CBusInfo[i].nBusNumber, addrStart, addrEnd);
+         hw_execute_bash_command_raw_silent(szBuff, szOutput);
+
+         if ( 0 == szOutput[0] )
+            continue;
+
+         uint8_t ret_addrs[128];
+         int device_count = 0;
+         char ret_lines[128];
+         const char *ptr_output = szOutput;
+
+         while ( *ptr_output )
+         {
+            int line_length = 0;
+            while ( ptr_output[line_length] && ptr_output[line_length] != '\n' ) line_length++;
+
+            if ( line_length > 0 )
+            {
+               strncpy(ret_lines, ptr_output, line_length);
+               ret_lines[line_length] = '\0';
+
+               int ret_row;
+               if ( sscanf(ret_lines, "%x:", &ret_row) == 1 )
+               {
+                  char *colon_ptr = strchr(ret_lines, ':');
+                  if ( colon_ptr )
+                  {
+                     colon_ptr++;
+
+                     for( int col = 0; col < 16 && *colon_ptr; col++)
+                     {
+                        while ( *colon_ptr == ' ' ) colon_ptr++;
+  
+                        if ( !*colon_ptr || !*(colon_ptr + 1) )
+                           break;
+
+                        if ( colon_ptr[0] == 'U' && colon_ptr[1] == 'U')
+                        {
+                           uint8_t addr = (ret_row << 4) | col;
+
+                           addr = addr + addrStart;
+                           ret_addrs[device_count] = addr;
+                           s_HardwareI2CBusInfo[i].devices[ ret_addrs[device_count] ] = 1;
+                           device_count++;
+
+                           char szDeviceName2[256];
+                           hardware_get_i2c_device_name(addr, szDeviceName2);
+                           log_line("[Hardware]: Found I2C Device on bus i2c-%d at address 0x%02X, device type: %s", s_HardwareI2CBusInfo[i].nBusNumber, addr, szDeviceName2);
+
+                           if ( hardware_is_known_i2c_device((u8)addr) )
+                              s_iKnownDevicesFound++;
+
+                           if ( (addr == I2C_DEVICE_ADDRESS_PICO_EXTENDER) ||
+                                (addr == I2C_DEVICE_ADDRESS_INA219_1) ||
+                                (addr == I2C_DEVICE_ADDRESS_INA219_2) ||
+                                (addr == I2C_DEVICE_ADDRESS_SSD1306_1) ||
+                                (addr == I2C_DEVICE_ADDRESS_SSD1306_2) ||
+                                ((addr >= I2C_DEVICE_MIN_ADDRESS_RANGE) && (addr <= I2C_DEVICE_MAX_ADDRESS_RANGE)) )
+                              s_iKnownConfigurableDevicesFound++;
+
+                           
+                           if ( addr == I2C_DEVICE_ADDRESS_PICO_EXTENDER )
+                           {
+                              log_line("[Hardware]: Found Pico Extender I2C device. Getting version info...");
+                              int nFile = wiringPiI2CSetup(I2C_DEVICE_ADDRESS_PICO_EXTENDER);
+                              int nVersion = 0;
+                              if ( nFile > 0 )
+                              {
+                                 nVersion = wiringPiI2CReadReg8(nFile, I2C_DEVICE_COMMAND_ID_GET_VERSION);
+                                 close(nFile);
+                              }
+                              log_line("[Hardware]: Got Pico Extender version: %d.%d", nVersion>>4, nVersion & 0x0F);
+                              s_HardwareI2CBusInfo[i].picoExtenderVersion = (u8)nVersion;
+                           }
+                           countDevicesTotal++;
+                           iCountDevicesFoundOnThisBus++;
+                        }
+
+                        colon_ptr += 2;
+                     }
+                  }
+               }
+            }
+
+            ptr_output += line_length;
+            if ( *ptr_output == '\n' ) ptr_output++;
+         }
+
+         /***
+
+            }
+         }
+          ***/
+         #else
          sprintf( szBuff, "i2cdetect -y %d 0x%02X 0x%02X | tr '\n' ' ' | sed -e 's/[^0-9a-fA-F]/ /g' -e 's/^ *//g' -e 's/ *$//g' | tr -s ' ' | sed $'s/ /\\\n/g'", s_HardwareI2CBusInfo[i].nBusNumber, addrStart, addrEnd);
          hw_execute_bash_command_raw_silent(szBuff, szOutput);
 
@@ -280,6 +397,7 @@ void hardware_enumerate_i2c_busses()
                iCountDevicesFoundOnThisBus++;
             }
          }
+         #endif
       }
       if ( iCountDevicesFoundOnThisBus > 50 )
       {
@@ -437,9 +555,10 @@ void hardware_get_i2c_device_name(u8 deviceAddress, char* szOutput)
 
    if ( deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_HDMI )
       strcpy(szOutput, I2C_DEVICE_NAME_CAMERA_HDMI);
-   if ( deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_CSI ||
-        deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_CSI_2 )
+   if ( deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_CSI)
       strcpy(szOutput, I2C_DEVICE_NAME_CAMERA_CSI);
+   if ( deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_CSI_2)
+      strcpy(szOutput, I2C_DEVICE_NAME_CAMERA_CSI_2);
    if ( deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_VEYE )
       strcpy(szOutput, I2C_DEVICE_NAME_CAMERA_VEYE);
 
