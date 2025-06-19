@@ -55,7 +55,7 @@
 #include "shared_vars.h"
 #include "adaptive_video.h"
 
-#ifdef HW_PLATFORM_RASPBERRY
+#if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
 
 pthread_t s_pThreadWatchDogVideoCapture;
 bool s_bStopThreadWatchDogVideoCapture = false;
@@ -124,12 +124,15 @@ static void * _thread_watchdog_video_capture(void *ignored_argument)
          bool bNeedsRestart = false;
          if ( (!bProgramRunning) && hw_process_exists(VIDEO_RECORDER_COMMAND) )
             bProgramRunning = true;
+
+         #if defined(HW_PLATFORM_RASPBERRY)
          if ( (!bProgramRunning) && hw_process_exists(VIDEO_RECORDER_COMMAND_VEYE) )
             bProgramRunning = true;
          if ( (!bProgramRunning) && hw_process_exists(VIDEO_RECORDER_COMMAND_VEYE307) )
             bProgramRunning = true;
          if ( (!bProgramRunning) && hw_process_exists(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME) )
             bProgramRunning = true;
+         #endif
 
          if ( ! bProgramRunning )
          {
@@ -487,7 +490,7 @@ void video_source_csi_send_control_message(u8 parameter, u16 value1, u16 value2)
       log_softerror_and_alarm("[VideoSourceCSI] Tried to send a raspi CSI command with no model or pipe opened.");
       return;
    }
-   #ifdef HW_PLATFORM_RASPBERRY
+   #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
 
    if ( (! g_pCurrentModel->isActiveCameraCSICompatible()) && (! g_pCurrentModel->isActiveCameraVeye()) )
    {
@@ -574,7 +577,7 @@ void video_source_csi_send_control_message(u8 parameter, u16 value1, u16 value2)
       if ( errno == EINVAL )
          log_softerror_and_alarm("[IPC] Failed to write to IPC %d, error code: EINVAL", IPC_CHANNEL_CSI_VIDEO_COMMANDS );
    }
-   #endif
+   #endif // HW_PLATFORM_RASPBERRY || HW_PLATFORM_RADXA
 }
 
 u32 video_source_csi_get_last_set_videobitrate()
@@ -585,7 +588,7 @@ u32 video_source_csi_get_last_set_videobitrate()
 
 void video_source_csi_periodic_checks()
 {
-   #ifdef HW_PLATFORM_RASPBERRY
+   #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
 
    if ( ! s_bDidSentRaspividBitrateRefresh )
    if ( (0 != s_uRaspiVidStartTimeMs) && ( g_TimeNow > s_uRaspiVidStartTimeMs + 2000 ) )
@@ -660,7 +663,9 @@ bool vehicle_launch_video_capture_csi(Model* pModel)
    {
       char szComm[1024];
       char szOutput[1024];
- 
+
+       
+      #if defined(HW_PLATFORM_RASPBERRY)
       int nBus = hardware_get_i2c_device_bus_number(I2C_DEVICE_ADDRESS_CAMERA_VEYE);
       log_line("Applying VeYe camera commands to I2C bus number %d, dev address: 0x%02X", nBus, I2C_DEVICE_ADDRESS_CAMERA_VEYE);
 
@@ -674,6 +679,7 @@ bool vehicle_launch_video_capture_csi(Model* pModel)
 
       vehicle_update_camera_params_csi(pModel, pModel->iCurrentCamera);
       hardware_sleep_ms(200);
+      #endif
    }
 
    if ( pModel->isActiveCameraHDMI() )
@@ -708,6 +714,7 @@ bool vehicle_launch_video_capture_csi(Model* pModel)
 
    if ( pModel->isActiveCameraVeye() )
    {
+      #if defined(HW_PLATFORM_RASPBERRY)
       if ( pModel->camera_params[pModel->iCurrentCamera].iCameraType == CAMERA_TYPE_VEYE307 )
       {
          if ( g_bDeveloperMode )
@@ -722,6 +729,7 @@ bool vehicle_launch_video_capture_csi(Model* pModel)
          else
             sprintf(szBuff, "%s %s %s -t 0 -o - &", szPriority, VIDEO_RECORDER_COMMAND_VEYE, szVideoFlags );
       }
+      #endif
    }
    else
    {
@@ -749,11 +757,13 @@ bool vehicle_launch_video_capture_csi(Model* pModel)
 
    if ( pModel->isActiveCameraVeye() )
    {
+      #if defined(HW_PLATFORM_RASPBERRY)
       if ( pModel->isActiveCameraVeye307() )
          hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE307, pModel->processesPriorities.iNiceVideo, pModel->processesPriorities.ioNiceVideo, 1 );
       else
          hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE, pModel->processesPriorities.iNiceVideo, pModel->processesPriorities.ioNiceVideo, 1 );
       hw_set_proc_priority(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, pModel->processesPriorities.iNiceVideo, pModel->processesPriorities.ioNiceVideo, 1 );
+      #endif
    }
    else
    {
@@ -776,9 +786,11 @@ void vehicle_stop_video_capture_csi(Model* pModel)
 
    if ( pModel->isActiveCameraVeye() )
    {
+      #if defined(HW_PLATFORM_RASPBERRY)
       hw_stop_process(VIDEO_RECORDER_COMMAND_VEYE);
       //hw_stop_process(VIDEO_RECORDER_COMMAND_VEYE307);
       //hw_stop_process(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME);
+      #endif
    }
    else
       hw_stop_process(VIDEO_RECORDER_COMMAND);
@@ -813,15 +825,18 @@ void vehicle_update_camera_params_csi(Model* pModel, int iCameraIndex)
 
       if ( pModel->isActiveCameraVeye327290() )
       {
+         #if defined(HW_PLATFORM_RASPBERRY)
          int nBus = hardware_get_i2c_device_bus_number(I2C_DEVICE_ADDRESS_CAMERA_VEYE);
          sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f  videofmt -p1 NTSC -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
          hw_execute_bash_command(szComm, NULL);
+         #endif
       }
       bApplyAll = true;
    }
 
    if ( pModel->isActiveCameraVeye307() )
    {
+      #if defined(HW_PLATFORM_RASPBERRY)
       int nBus = hardware_get_i2c_device_bus_number(I2C_DEVICE_ADDRESS_CAMERA_VEYE);
       
       if ( s_LastAppliedVeyeVideoParams.width != pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].width ||
@@ -902,9 +917,11 @@ void vehicle_update_camera_params_csi(Model* pModel, int iCameraIndex)
             sprintf(szComm, "current_dir=$PWD; cd %s/; ./cs_mipi_i2c.sh -w -f imagedir -p1 0 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER307, nBus);
          hw_execute_bash_command(szComm, NULL);
       }
+      #endif
    }
    else // IMX 327 camera
    {
+      #if defined(HW_PLATFORM_RASPBERRY)
       int nBus = hardware_get_i2c_device_bus_number(I2C_DEVICE_ADDRESS_CAMERA_VEYE);
       log_line("Applying VeYe camera commands to I2C bus number %d, dev address: 0x%02X", nBus, I2C_DEVICE_ADDRESS_CAMERA_VEYE);
       if ( bApplyAll )
@@ -1024,6 +1041,7 @@ void vehicle_update_camera_params_csi(Model* pModel, int iCameraIndex)
             sprintf(szComm, "current_dir=$PWD; cd %s/; ./veye_mipi_i2c.sh -w -f mirrormode -p1 0x00 -b %d; cd $current_dir", VEYE_COMMANDS_FOLDER, nBus);
          hw_execute_bash_command(szComm, NULL);
       }
+      #endif
    }
    
    memcpy((u8*)&s_LastAppliedVeyeCameraParams, (u8*)&(pModel->camera_params[iCameraIndex]), sizeof(type_camera_parameters));
