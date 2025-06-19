@@ -266,6 +266,16 @@ void vehicle_launch_audio_capture(Model* pModel)
    log_line("Created thread for audio capture.");
    #endif
 
+   #if defined (HW_PLATFORM_RADXA)
+   if ( 0 != pthread_create(&s_pThreadAudioCapture, NULL, &_thread_audio_capture, g_pCurrentModel) )
+   {
+      log_softerror_and_alarm("Radxa failed to create thread for audio capture.");
+      s_bAudioCaptureIsStarted = false;
+      return;
+   }
+   log_line("Radxa created thread for audio capture.");
+   #endif
+
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
    hardware_camera_maj_enable_audio(true, 4000*(1+pModel->audio_params.quality), pModel->audio_params.volume);
    #endif
@@ -281,6 +291,10 @@ void vehicle_stop_audio_capture(Model* pModel)
       return;
 
    #if defined (HW_PLATFORM_RASPBERRY)
+   hw_stop_process("arecord");
+   #endif
+
+   #if defined (HW_PLATFORM_RADXA)
    hw_stop_process("arecord");
    #endif
 
