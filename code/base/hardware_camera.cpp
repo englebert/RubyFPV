@@ -305,6 +305,38 @@ u32 _hardware_detect_camera_type()
    }
    #endif
 
+   #if defined (HW_PLATFORM_RADXA)
+   char szOutput[512];
+   char szComm[256];
+
+   int retryCount = 3;
+
+   if ( access(FILE_FORCE_VEHICLE_NO_CAMERA, R_OK ) != -1 )
+   {
+      log_line("File %s present to force no camera.", FILE_FORCE_VEHICLE_NO_CAMERA);
+      retryCount = 0;
+   }
+
+   while ( retryCount > 0 )
+   {
+      if ( hardware_has_i2c_device_id(I2C_DEVICE_ADDRESS_CAMERA_CSI_2) )
+      {
+         s_iHardwareCameraI2CBus = hardware_get_i2c_device_bus_number(I2C_DEVICE_ADDRESS_CAMERA_CSI_2);
+         log_line("Hardware: IMX219 Camera detected on i2c bus %d.", s_iHardwareCameraI2CBus);
+         s_bHardwareHasCamera = 1;
+         s_uHardwareCameraType = CAMERA_TYPE_HDMI;
+         break;
+      }
+      
+      hardware_sleep_ms(400);
+      retryCount--;
+   }
+
+   s_bHardwareHasCamera = 1;
+   s_iHardwareCameraI2CBus = 1;
+
+   #endif
+
    if ( s_bHardwareHasCamera == 0 )
       log_line("[Hardware] No camera detected.");
    else
