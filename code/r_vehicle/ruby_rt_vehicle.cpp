@@ -460,6 +460,11 @@ void reinit_radio_interfaces()
       video_source_csi_flush_discard();
    #endif
 
+   #ifdef HW_PLATFORM_RADXA
+   if ( g_pCurrentModel->hasCamera() )
+      video_source_csi_flush_discard();
+   #endif
+
    while ( true )
    {
       log_line("Try to do recovery action...");
