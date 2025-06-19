@@ -171,6 +171,8 @@
 #define FILE_FORCE_RESET "/config/forcereset"
 #define FILE_BOOT_LOG_STEPS "/config/bootstepslog.txt"
 
+#define VIDEO_RECORDER_COMMAND "radxa_stream.sh"
+
 #define VIDEO_PLAYER_PIPE "ruby_player_radxa"
 #define VIDEO_PLAYER_SM "ruby_player_radxa"
 #define VIDEO_PLAYER_UDP "ruby_player_radxa"
