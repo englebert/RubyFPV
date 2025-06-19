@@ -667,6 +667,9 @@ int r_start_vehicle(int argc, char *argv[])
    #ifdef HW_PLATFORM_RASPBERRY
    hw_execute_ruby_process(NULL, "ruby_alive", NULL, NULL);
    #endif
+   #ifdef HW_PLATFORM_RADXA
+   hw_execute_ruby_process(NULL, "ruby_alive", NULL, NULL);
+   #endif
    
    log_line("Launching processes...");
    _launch_vehicle_processes();
