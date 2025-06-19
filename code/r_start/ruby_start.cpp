@@ -1508,7 +1508,7 @@ int main(int argc, char *argv[])
    _log_oipc_boot_step("Done init radios.");
 
    #ifdef HW_PLATFORM_RADXA
-   if ( ! g_bIsFirstBoot )
+   if ( ! g_bIsFirstBoot &&  access( FILE_FORCE_VEHICLE, R_OK ) )
    {
       strcpy(szFile, FOLDER_BINARIES);
       strcat(szFile, "res/intro.h264");
@@ -1846,8 +1846,10 @@ int main(int argc, char *argv[])
       hardware_sleep_ms(500);
       if ( ! g_bDebug )
       {
+         #ifdef HW_PLATFORM_RASPBERRY
          hw_execute_bash_command("sudo raspi-config --expand-rootfs > /dev/null 2>&1", NULL);
          hardware_reboot();
+         #endif
       }
       return 0;
    }
