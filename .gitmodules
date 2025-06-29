@@ -1,0 +1,3 @@
+[submodule "RadxaStreamer"]
+	path = RadxaStreamer
+	url = git@github.com:englebert/RadxaStreamer.git
